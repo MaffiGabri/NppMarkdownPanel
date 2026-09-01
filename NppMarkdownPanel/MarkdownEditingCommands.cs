@@ -51,28 +51,14 @@ namespace NppMarkdownPanel
         private static void WrapSelection(string prefix, string suffix)
         {
             var editor = GetEditor();
-            int start = (int)editor.GetSelectionStart();
-            int end = (int)editor.GetSelectionEnd();
+            int sel1 = (int)editor.GetSelectionStart();
+            int sel2 = (int)editor.GetSelectionEnd();
+            int start = Math.Min(sel1, sel2);
+            int end = Math.Max(sel1, sel2);
             
             int prefixLen = prefix.Length;
             int suffixLen = suffix.Length;
             int docLength = editor.GetTextLength();
-
-            string selectedText = editor.GetSelText();
-            
-            // Case A: The selection INCLUDES the tags
-            if (selectedText.Length >= prefixLen + suffixLen && 
-                selectedText.StartsWith(prefix) && selectedText.EndsWith(suffix))
-            {
-                editor.BeginUndoAction();
-                editor.SetSel(end - suffixLen, end);
-                editor.ReplaceSel("");
-                editor.SetSel(start, start + prefixLen);
-                editor.ReplaceSel("");
-                editor.SetSel(start, end - prefixLen - suffixLen);
-                editor.EndUndoAction();
-                return;
-            }
 
             // Case B: The selection is INSIDE the tags
             bool surrounded = false;
@@ -103,13 +89,47 @@ namespace NppMarkdownPanel
             if (surrounded)
             {
                 editor.BeginUndoAction();
-                editor.SetSel(end, end + suffixLen);
-                editor.ReplaceSel("");
-                editor.SetSel(start - prefixLen, start);
-                editor.ReplaceSel("");
+                editor.DeleteRange(end, suffixLen);
+                editor.DeleteRange(start - prefixLen, prefixLen);
                 editor.SetSel(start - prefixLen, end - prefixLen);
                 editor.EndUndoAction();
                 return;
+            }
+            
+            // Case A: The selection INCLUDES the tags
+            int selLength = end - start;
+            if (selLength >= prefixLen + suffixLen)
+            {
+                bool includesTags = true;
+                for (int i = 0; i < prefixLen; i++)
+                {
+                    if (editor.GetCharAt(start + i) != prefix[i])
+                    {
+                        includesTags = false;
+                        break;
+                    }
+                }
+                if (includesTags)
+                {
+                    for (int i = 0; i < suffixLen; i++)
+                    {
+                        if (editor.GetCharAt(end - suffixLen + i) != suffix[i])
+                        {
+                            includesTags = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (includesTags)
+                {
+                    editor.BeginUndoAction();
+                    editor.DeleteRange(end - suffixLen, suffixLen);
+                    editor.DeleteRange(start, prefixLen);
+                    editor.SetSel(start, end - prefixLen - suffixLen);
+                    editor.EndUndoAction();
+                    return;
+                }
             }
 
             // Default: Apply tags
@@ -126,8 +146,10 @@ namespace NppMarkdownPanel
         private static void PrefixLines(string prefix)
         {
             var editor = GetEditor();
-            int start = (int)editor.GetSelectionStart();
-            int end = (int)editor.GetSelectionEnd();
+            int sel1 = (int)editor.GetSelectionStart();
+            int sel2 = (int)editor.GetSelectionEnd();
+            int start = Math.Min(sel1, sel2);
+            int end = Math.Max(sel1, sel2);
             
             int startLine = editor.LineFromPosition(start);
             int endLine = editor.LineFromPosition(end);
@@ -162,13 +184,10 @@ namespace NppMarkdownPanel
                 
                 if (startsWithPrefix)
                 {
-                    // Remove prefix
-                    editor.SetSel(lineStart, lineStart + prefix.Length);
-                    editor.ReplaceSel("");
+                    editor.DeleteRange(lineStart, prefix.Length);
                 }
                 else
                 {
-                    // Insert prefix
                     editor.InsertText(lineStart, prefix);
                 }
             }
