@@ -1,4 +1,4 @@
-﻿using Kbg.NppPluginNET.PluginInfrastructure;
+using Kbg.NppPluginNET.PluginInfrastructure;
 using NppMarkdownPanel.Entities;
 using NppMarkdownPanel.Forms;
 using NppMarkdownPanel.Generator;
@@ -114,6 +114,7 @@ namespace NppMarkdownPanel
         {
             if (isPanelVisible && notification.Header.Code == (uint)SciMsg.SCN_UPDATEUI)
             {
+                if (previewForm != null) previewForm.UpdateToolbarButtons();
                 var scintillaGateway = scintillaGatewayFactory();
                 if (syncViewWithCaretPosition)
                 {

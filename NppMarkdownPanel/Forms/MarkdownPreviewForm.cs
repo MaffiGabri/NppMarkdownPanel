@@ -147,6 +147,17 @@ OUTLINE_SCRIPT_PLACEHOLDER
         private Action<int> checkboxToggleHandler;
         private Action<int> radioToggleHandler;
 
+        private ToolStripButton btnBold;
+        private ToolStripButton btnItalic;
+        private ToolStripButton btnUnderline;
+        private ToolStripButton btnStrike;
+        private ToolStripButton btnH1;
+        private ToolStripButton btnH2;
+        private ToolStripButton btnQuote;
+        private ToolStripButton btnList;
+        private ToolStripButton btnTask;
+        private ToolStripButton btnLink;
+
         public void SetCheckboxToggleHandler(Action<int> handler)
         {
             checkboxToggleHandler = handler;
@@ -238,47 +249,47 @@ OUTLINE_SCRIPT_PLACEHOLDER
 
         private void InitializeFormatButtons()
         {
-            var btnBold = new ToolStripButton("B");
+            btnBold = new ToolStripButton("B");
             btnBold.Font = new Font(btnBold.Font, FontStyle.Bold);
             btnBold.Click += (s, e) => MarkdownEditingCommands.ToggleBold();
             btnBold.ToolTipText = "Bold";
             
-            var btnItalic = new ToolStripButton("I");
+            btnItalic = new ToolStripButton("I");
             btnItalic.Font = new Font(btnItalic.Font, FontStyle.Italic);
             btnItalic.Click += (s, e) => MarkdownEditingCommands.ToggleItalic();
             btnItalic.ToolTipText = "Italic";
 
-            var btnUnderline = new ToolStripButton("U");
+            btnUnderline = new ToolStripButton("U");
             btnUnderline.Font = new Font(btnUnderline.Font, FontStyle.Underline);
             btnUnderline.Click += (s, e) => MarkdownEditingCommands.ToggleUnderline();
             btnUnderline.ToolTipText = "Underline";
 
-            var btnStrike = new ToolStripButton("S");
+            btnStrike = new ToolStripButton("S");
             btnStrike.Font = new Font(btnStrike.Font, FontStyle.Strikeout);
             btnStrike.Click += (s, e) => MarkdownEditingCommands.ToggleStrikethrough();
             btnStrike.ToolTipText = "Strikethrough";
 
-            var btnH1 = new ToolStripButton("H1");
+            btnH1 = new ToolStripButton("H1");
             btnH1.Click += (s, e) => MarkdownEditingCommands.SetHeading1();
             btnH1.ToolTipText = "Heading 1";
 
-            var btnH2 = new ToolStripButton("H2");
+            btnH2 = new ToolStripButton("H2");
             btnH2.Click += (s, e) => MarkdownEditingCommands.SetHeading2();
             btnH2.ToolTipText = "Heading 2";
 
-            var btnQuote = new ToolStripButton("\"");
+            btnQuote = new ToolStripButton("\"");
             btnQuote.Click += (s, e) => MarkdownEditingCommands.ToggleBlockquote();
             btnQuote.ToolTipText = "Blockquote";
 
-            var btnList = new ToolStripButton("List");
+            btnList = new ToolStripButton("List");
             btnList.Click += (s, e) => MarkdownEditingCommands.InsertList();
             btnList.ToolTipText = "Bullet List";
 
-            var btnTask = new ToolStripButton("Task");
+            btnTask = new ToolStripButton("Task");
             btnTask.Click += (s, e) => MarkdownEditingCommands.InsertTaskEmpty();
             btnTask.ToolTipText = "Task List";
 
-            var btnLink = new ToolStripButton("Link");
+            btnLink = new ToolStripButton("Link");
             btnLink.Click += (s, e) => MarkdownEditingCommands.InsertLink();
             btnLink.ToolTipText = "Insert Link";
 
@@ -291,10 +302,29 @@ OUTLINE_SCRIPT_PLACEHOLDER
             tbPreview.Items.Add(btnH1);
             tbPreview.Items.Add(btnH2);
             tbPreview.Items.Add(btnQuote);
-            tbPreview.Items.Add(new ToolStripSeparator());
             tbPreview.Items.Add(btnList);
             tbPreview.Items.Add(btnTask);
+            tbPreview.Items.Add(new ToolStripSeparator());
             tbPreview.Items.Add(btnLink);
+        }
+
+        public void UpdateToolbarButtons()
+        {
+            if (btnBold == null) return;
+            try
+            {
+                btnBold.Checked = MarkdownEditingCommands.IsWrapActive("**", "**");
+                btnItalic.Checked = MarkdownEditingCommands.IsWrapActive("*", "*");
+                btnUnderline.Checked = MarkdownEditingCommands.IsWrapActive("<u>", "</u>");
+                btnStrike.Checked = MarkdownEditingCommands.IsWrapActive("~~", "~~");
+                
+                btnH1.Checked = MarkdownEditingCommands.IsPrefixActive("# ");
+                btnH2.Checked = MarkdownEditingCommands.IsPrefixActive("## ");
+                btnQuote.Checked = MarkdownEditingCommands.IsPrefixActive("> ");
+                btnList.Checked = MarkdownEditingCommands.IsPrefixActive("- ");
+                btnTask.Checked = MarkdownEditingCommands.IsPrefixActive("- [ ] ");
+            }
+            catch { }
         }
 
         public void InitRenderingEngine(Settings newSettings, Action<string> openLocalFileInNppAction)
