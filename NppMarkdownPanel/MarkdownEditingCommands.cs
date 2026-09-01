@@ -51,20 +51,72 @@ namespace NppMarkdownPanel
         private static void WrapSelection(string prefix, string suffix)
         {
             var editor = GetEditor();
-            // Cast to int in case of older Scintilla wrappers returning a Position struct
             int start = (int)editor.GetSelectionStart();
             int end = (int)editor.GetSelectionEnd();
+            
+            int prefixLen = prefix.Length;
+            int suffixLen = suffix.Length;
+            int docLength = editor.GetTextLength();
 
+            string selectedText = editor.GetSelText();
+            
+            // Case A: The selection INCLUDES the tags
+            if (selectedText.Length >= prefixLen + suffixLen && 
+                selectedText.StartsWith(prefix) && selectedText.EndsWith(suffix))
+            {
+                editor.BeginUndoAction();
+                editor.SetSel(end - suffixLen, end);
+                editor.ReplaceSel("");
+                editor.SetSel(start, start + prefixLen);
+                editor.ReplaceSel("");
+                editor.SetSel(start, end - prefixLen - suffixLen);
+                editor.EndUndoAction();
+                return;
+            }
+
+            // Case B: The selection is INSIDE the tags
+            bool surrounded = false;
+            if (start >= prefixLen && (docLength - end) >= suffixLen)
+            {
+                surrounded = true;
+                for (int i = 0; i < prefixLen; i++)
+                {
+                    if (editor.GetCharAt(start - prefixLen + i) != prefix[i])
+                    {
+                        surrounded = false;
+                        break;
+                    }
+                }
+                if (surrounded)
+                {
+                    for (int i = 0; i < suffixLen; i++)
+                    {
+                        if (editor.GetCharAt(end + i) != suffix[i])
+                        {
+                            surrounded = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (surrounded)
+            {
+                editor.BeginUndoAction();
+                editor.SetSel(end, end + suffixLen);
+                editor.ReplaceSel("");
+                editor.SetSel(start - prefixLen, start);
+                editor.ReplaceSel("");
+                editor.SetSel(start - prefixLen, end - prefixLen);
+                editor.EndUndoAction();
+                return;
+            }
+
+            // Default: Apply tags
             editor.BeginUndoAction();
-            
-            // Insert suffix first (at the end) so the 'start' position index doesn't shift!
             editor.InsertText(end, suffix);
-            // Then insert prefix
             editor.InsertText(start, prefix);
-            
-            // Restore selection around the wrapped text
-            editor.SetSel(start + prefix.Length, end + prefix.Length);
-            
+            editor.SetSel(start + prefixLen, end + prefixLen);
             editor.EndUndoAction();
         }
 
@@ -79,17 +131,57 @@ namespace NppMarkdownPanel
             
             int startLine = editor.LineFromPosition(start);
             int endLine = editor.LineFromPosition(end);
+            
+            // If the selection ends exactly at the start of a line (e.g. they selected one whole line including newline)
+            // we don't want to prefix the empty line at the end unless it's the only line.
+            if (endLine > startLine && editor.PositionFromLine(endLine) == end)
+            {
+                endLine--;
+            }
 
             editor.BeginUndoAction();
             
-            // Iterate backwards! 
-            // If we insert text top-down, the starting positions of subsequent lines would shift.
-            // By going bottom-up, line starting positions remain completely stable.
             for (int i = endLine; i >= startLine; i--)
             {
                 int lineStart = editor.PositionFromLine(i);
-                editor.InsertText(lineStart, prefix);
+                int lineLength = editor.LineLength(i);
+                
+                bool startsWithPrefix = true;
+                if (lineLength < prefix.Length) {
+                    startsWithPrefix = false;
+                } else {
+                    for (int j = 0; j < prefix.Length; j++)
+                    {
+                        if (editor.GetCharAt(lineStart + j) != prefix[j])
+                        {
+                            startsWithPrefix = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (startsWithPrefix)
+                {
+                    // Remove prefix
+                    editor.SetSel(lineStart, lineStart + prefix.Length);
+                    editor.ReplaceSel("");
+                }
+                else
+                {
+                    // Insert prefix
+                    editor.InsertText(lineStart, prefix);
+                }
             }
+            
+            // Adjust selection to span the modified lines
+            int newStart = editor.PositionFromLine(startLine);
+            int newEndLineStart = editor.PositionFromLine(endLine);
+            int newEnd = newEndLineStart + editor.LineLength(endLine);
+            // Ignore trailing newlines from LineLength
+            while (newEnd > newStart && (editor.GetCharAt(newEnd - 1) == '\r' || editor.GetCharAt(newEnd - 1) == '\n'))
+                newEnd--;
+            
+            editor.SetSel(newStart, newEnd);
             
             editor.EndUndoAction();
         }
